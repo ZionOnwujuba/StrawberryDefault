@@ -51,11 +51,26 @@ bool testStats = false;
 int timeRemaining = 200;
 int timeX = 9;
 int timeIndex = 0;
+int hitTime = 0;
+int hitTime2 = 0;
+int specialMoveTime = 0;
+int specialMoveTime2 = 0;
+int initialStrawOrbVx = 0;
+int initialBananaOrbVx = 0;
+int initialStrawOrbX = 0;
+int initialBananaOrbX = 0;
+int specialMove = 0;
+int specialMove2 = 0;
+int language = 0;
 Sprite s1(0, startY, 33, 30, 0, 8, StrawberryBMPDefault);
-Sprite s2(50, startY, 33, 30, 0, 10, BananaBMPDefault);
-Sprite health1(0, 40, 16, 10, 16, 10, SmallEnemy20pointA);
+Sprite s2(95, startY, 33, 30, 0, 10, BananaBMPDefault);
+Sprite strawOrb(s1.x, s1.y, 33, 30, 0, 8, StrawberryOrbBMP);
+Sprite bananaOrb(s2.x, s2.y, 33, 30, 0, 8, BananaOrbBMP);
+
 int prevS1Health = s1.health;
 int prevS2Health = s2.health;
+int prevS1hitCounter = s1.hitCounter;
+int prevS2hitCounter = s2.hitCounter;
 uint32_t Random32(void){
   M = 1664525*M+1013904223;
   return M;
@@ -83,6 +98,38 @@ void intToChar(int num){
   }
   delete []charArr;
 }
+void endScreen(Sprite winner, int spriteNum){
+  ST7735_FillScreen(ST7735_BLACK);
+  ST7735_SetCursor(2, 4);
+  if(spriteNum == 1){
+      if(language){
+        ST7735_OutString("Strawberry");
+      } else {
+        ST7735_OutString("\xAD La Fresa gan\xA2!");
+      }
+  } else if (spriteNum == 2){
+      if(language){
+        ST7735_OutString("Banana");
+      } else {
+        ST7735_OutString("\xAD El pl\xA0tano gan\xA2!");
+      }
+  } else if(spriteNum == 3){
+      if(language){
+        ST7735_OutString("Tie!");
+      } else {
+        ST7735_OutString("\xAD Atar!");
+      }
+  }
+  
+  ST7735_SetCursor(2, 5);
+  ST7735_OutString("Score: ");
+  ST7735_OutUDec((winner.totalHits * winner.health) * 10);
+
+  while(1){
+
+  }
+
+}
 // games  engine runs at 30Hz
 void TIMG12_IRQHandler(void){uint32_t pos,msg, now1, now2;
   if((TIMG12->CPU_INT.IIDX) == 1){ // this will acknowledge
@@ -91,6 +138,17 @@ void TIMG12_IRQHandler(void){uint32_t pos,msg, now1, now2;
 // game engine goes here
     // 1) sample slide pot
     //Sensor.Save(Sensor.In());
+    if(s1.health <= 0){
+        endScreen(s2, 2);
+      
+    } else if(s2.health <= 0){
+
+        endScreen(s1, 1);
+    } else if(timeRemaining == 0){
+      const char* winnerName = "";
+      Sprite winner = (s1.health > s2.health) ? s1 : s2;   
+      endScreen(winner, 3);
+    } else {
     int charArr[4] = {0, 0, 0, 0};
     int Data = Sensor.In();
     int Data2 = Sensor2.InADC0();
@@ -165,19 +223,39 @@ prevS2Health = s2.health;
 
 }
 
+  if(prevS1hitCounter != s1.hitCounter && s1.hitCounter < 6){
+
+ ST7735_FillRect(5,36,(40*(s1.hitCounter))/5,5,ST7735_RED);
+ prevS1hitCounter = s1.hitCounter;
+  }else if(s1.hitCounter == -1){
+     ST7735_FillRect(5,30,(40*(s1.health))/10,10,ST7735_WHITE);
+   ST7735_FillRect(83,36,1,5,ST7735_RED);
+}
+   
+if(prevS2hitCounter != s2.hitCounter && s2.hitCounter < 6){
+
+ ST7735_FillRect(83,36,(40*(s2.hitCounter))/5,5,ST7735_RED);
+//health1.Place((health1.w*(s2.health))/10, health1.h);
+prevS2hitCounter = s2.hitCounter;
+
+} else if(s2.hitCounter == -1){
+   ST7735_FillRect(83+(40*(10-s2.health))/10,30,(40*(s2.health))/10,10,ST7735_WHITE);
+   ST7735_FillRect(83,36,1,5,ST7735_RED);
+}
+
   //Blocking
 now1 = Block_P1();
 now2 = Block_P2();
 
 
-s1.Block(StrawberryBMPDefault,now1 == 1);
-s2.Block(BananaBMPDefault,now2 == 1);
+s1.Block(StrawberryBlockLeftBMP,StrawberryBlockRightBMP,now1 == 1);
+s2.Block(BananaBlockLeftBMP,BananaBlockRightBMP,now2 == 1);
 
 
 
   //Move 
-   s1.Move(convertedResult, vy, switch1On, StrawberryBMPDefault, s2);
-  s2.Move(convertedResult2, vy2, switch2On, BananaBMPDefault, s1);
+   s1.Move(convertedResult, vy, switch1On, StrawberryDefaultLeft,StrawberryBMPDefault, s2);
+  s2.Move(convertedResult2, vy2, switch2On, BananaBMPDefault,BananaDefaultRightBMP, s1);
 
 
 //Time
@@ -185,8 +263,50 @@ timeIndex++;
 if(timeRemaining == 0){
   timeIndex = 0;
 }
-if(timeIndex == 30){
-  timeIndex = 0;
+if(timeIndex - hitTime == 5){
+  s1.currBitmap = s1.idleBitmap;
+  s2.currBitmap = s2.idleBitmap;
+}
+if(timeIndex - hitTime2 == 5){
+  s1.currBitmap = s1.idleBitmap;
+s2.currBitmap = s2.idleBitmap;
+}
+
+if(timeIndex - specialMoveTime == 10 && specialMove){
+  s1.currBitmap = s1.idleBitmap;
+  s2.currBitmap = s2.idleBitmap;
+  specialMove = 0;
+  specialMoveTime = -1;
+  initialStrawOrbVx = (s1.vx >= 0) ? 2 : -2;
+  strawOrb.x = (s1.vx >= 0) ? (s1.x + strawOrb.w) : s1.x - bananaOrb.w;
+
+}
+if(timeIndex - specialMoveTime2 == 10 && specialMove2){
+ s1.currBitmap = s1.idleBitmap;
+  s2.currBitmap = s2.idleBitmap;
+  specialMove2 = 0;
+  specialMoveTime2 = -1;
+  initialBananaOrbVx = (s2.vx >= 0) ? 2 : -2;
+  bananaOrb.x = (s2.vx >= 0) ? (s2.x + bananaOrb.w) : s2.x - bananaOrb.w;
+}
+if(specialMoveTime == -1){ 
+  if(strawOrb.x < 128 && strawOrb.x > 0){
+    strawOrb.OrbMove(s2,BananaHitLeftBMP, BlackBMP,initialStrawOrbVx);
+    hitTime = timeIndex;
+  } else {
+    specialMoveTime = 0;
+  }
+}
+
+if(specialMoveTime2 == -1){ 
+  if(bananaOrb.x < 128 && bananaOrb.x > 0){
+    bananaOrb.OrbMove(s1,StrawberryHitLeftBMP, BlackBMP,initialBananaOrbVx);
+    hitTime2 = timeIndex;
+  } else {
+    specialMoveTime = 0;
+  }
+}
+if(timeIndex % 30 == 0 && timeIndex != 0){
   timeRemaining--;
   if(timeRemaining == 9){
     timeX++;
@@ -203,6 +323,7 @@ if(timeIndex == 30){
     GPIOB->DOUTTGL31_0 = GREEN; // toggle PB27 (minimally intrusive debugging)
   }
 }
+}
 
 void GROUP1_IRQHandler(void){
   if(GPIOA->CPU_INT.RIS&(1<<8)){ // PA8
@@ -212,11 +333,17 @@ void GROUP1_IRQHandler(void){
   }
     if(GPIOB->CPU_INT.RIS&(1<<4)){ // PB4
     GPIOB->CPU_INT.ICLR = 1<<4;
-    s1.Hit(s2, PlayerShip3);
+    s1.Hit(s2, StrawberryPunchLeftBMP, StrawberryPunchRightBMP, BananaHitLeftBMP, BananaHitRightBMP);
+    hitTime = timeIndex;
   }
 
   if(GPIOA->CPU_INT.RIS&(1<<28)){ // PA28
     GPIOA->CPU_INT.ICLR = 1<<28;
+    if(s1.hitCounter >= 5){
+      s1.SpecialMove(StrawberrySpecialMoveBMP);
+  specialMoveTime = timeIndex;
+  specialMove = 1;
+    }
 
   }
 
@@ -226,17 +353,27 @@ void GROUP1_IRQHandler(void){
     switch2On = true;
     vy2 = -1;
   }
-    if(GPIOA->CPU_INT.RIS&(1<<11)){ // PA11
-    GPIOA->CPU_INT.ICLR = 1<<11;
-    s2.Hit(s1, SmallEnemy10pointA);
+    if(GPIOB->CPU_INT.RIS&(1<<12)){ // PA11
+    GPIOB->CPU_INT.ICLR = 1<<12;
+    s2.Hit(s1, BananaPunchLeftBMP, BananaPunchRightBMP, StrawberryHitLeftBMP, StrawberryHitRightBMP);
+    hitTime2 = timeIndex;
+  
   }
 
   if(GPIOB->CPU_INT.RIS&(1<<19)){ // PB19
     GPIOA->CPU_INT.ICLR = 1<<19;
+    if(s2.hitCounter >= 5){
+      s2.SpecialMove(BananaSpecialMoveBMP);
+    specialMoveTime2 = timeIndex;
+    specialMove2 = 1;
+  
+    } 
+    
 
   }
-
 }
+
+
 
 
  
@@ -403,7 +540,34 @@ int main5(void){ // final main
     // check for end game or level switch
   }
 }
+void titleScreen(){
 
+  int now1 = Block_P1();
+  ST7735_SetCursor(2, 4);
+ST7735_OutString("Fruit Fighters");
+  while(!now1){
+        int Data = Sensor.In();
+    
+    for(int i = 0; i < 100; i++){
+    Data += Sensor.In();
+  }
+
+  int result = Sensor.Convert((Data/100));
+  int32_t convertedResult = ((result/(475))-2);
+    if(convertedResult < 0){
+ST7735_SetCursor(2, 5);
+ST7735_OutString("Spanish");
+language = 0;
+    } else {
+ST7735_SetCursor(2, 5);
+ST7735_OutString("English");
+language = 1;
+    }
+    now1 = Block_P1();
+  }
+  ST7735_FillScreen(ST7735_BLACK);
+  
+}
 
 
 int main(void){ // main6
@@ -416,10 +580,13 @@ int main(void){ // main6
   ST7735_FillScreen(ST7735_BLACK);
   Sensor.Init(); //PB18 = ADC1 channel 5, slidepot
 Sensor2.InitADC0();
+Switch_Init();
+titleScreen();
+
     // initialize interrupts on TimerG12 at 30 Hz
     TimerG12_IntArm(2666666, 2);
 
-Switch_Init();
+
 
   __enable_irq();
   ST7735_SetCursor(timeX,3);
@@ -431,11 +598,21 @@ Switch_Init();
   ST7735_FillRect(80,27,46,16,ST7735_MAGENTA);
   ST7735_FillRect(83,30+(40-(40*(s2.health))/10),(40*(s1.health))/10,10,ST7735_WHITE);
 
-  ST7735_SetCursor(0,2);
-  ST7735_OutString("Strawberry");
-
-   ST7735_SetCursor(14,2);
+  
+  if(language){
+    ST7735_SetCursor(0,2);
+    ST7735_OutString("Strawberry");
+    ST7735_SetCursor(14,2);
   ST7735_OutString("Banana");
+  } else {
+       ST7735_SetCursor(1,2);
+    ST7735_OutString("Fresa");
+    ST7735_SetCursor(13,2);
+  ST7735_OutString("pl\xA0tano");
+  }
+  
+
+
 
   while(1){
        // complete this
